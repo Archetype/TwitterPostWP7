@@ -1,0 +1,15 @@
+﻿Post to Twitter using OAuth for authentication.  The Webbrowser control detects the redirect URL so you will need to change it so that detects whatever redirect you have setup on your twitter account.
+
+= SecretKeys.cs =
+To get started, create this file and link it into your project.  It should have the following contents:
+
+
+namespace Twitter
+{
+    public static class SecretKeys
+    {
+        public static string Api { get { return "XXXX"; } }
+        public static string Consumer { get { return "YYYY"; } }
+        public static string ConsumerSecret { get { return "ZZZZ"; } }
+    }
+}
