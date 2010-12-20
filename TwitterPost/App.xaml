@@ -1,0 +1,28 @@
+﻿<Application
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"       
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:phone="clr-namespace:Microsoft.Phone.Controls;assembly=Microsoft.Phone"
+    xmlns:shell="clr-namespace:Microsoft.Phone.Shell;assembly=Microsoft.Phone" xmlns:TwitterPost_ViewModels="clr-namespace:TwitterPost.ViewModels" xmlns:d="http://schemas.microsoft.com/expression/blend/2008" xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" mc:Ignorable="d" 
+    x:Class="TwitterPost.App"
+    >
+	<Application.Resources>
+		<ResourceDictionary>
+			<TwitterPost_ViewModels:MainPageViewModel x:Key="MainPageViewModelDataSource" d:IsDataSource="True"/>
+		</ResourceDictionary>
+	</Application.Resources>
+
+    <!--Application Resources-->
+	<!-- 
+    <Application.Resources>
+    	<TwitterPost_ViewModels:MainPageViewModel x:Key="MainPageViewModelDataSource" d:IsDataSource="True"/>
+    </Application.Resources>
+	-->
+
+    <Application.ApplicationLifetimeObjects>
+        <!--Required object that handles lifetime events for the application-->
+        <shell:PhoneApplicationService 
+            Launching="Application_Launching" Closing="Application_Closing" 
+            Activated="Application_Activated" Deactivated="Application_Deactivated"/>
+    </Application.ApplicationLifetimeObjects>
+
+</Application>

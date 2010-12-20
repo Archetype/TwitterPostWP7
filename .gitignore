@@ -1,0 +1,8 @@
+Bin/
+obj/
+*.vcproj.*.user
+*.vcproj.user
+*.ncb
+*.aps
+*.suo
+
