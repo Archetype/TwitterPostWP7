@@ -85,6 +85,77 @@ namespace Twitter
 
         #endregion
 
+        #region Configuration Settings
+
+        private static string m_CallbackUrl;
+        public static string CallbackUrl
+        {
+            get
+            {
+                return m_CallbackUrl;
+            }
+            private set
+            {
+                if (m_CallbackUrl == value)
+                {
+                    return;
+                }
+                m_CallbackUrl = value;
+            }
+        }
+
+        private static string m_ApiKey;
+        public static string ApiKey
+        {
+            get
+            {
+                return m_ApiKey;
+            }
+            private set
+            {
+                if (m_ApiKey == value)
+                {
+                    return;
+                }
+                m_ApiKey = value;
+            }
+        }
+
+        private static string m_ConsumerKey;
+        public static string ConsumerKey
+        {
+            get
+            {
+                return m_ConsumerKey;
+            }
+            private set
+            {
+                if (m_ConsumerKey == value)
+                {
+                    return;
+                }
+                m_ConsumerKey = value;
+            }
+        }
+
+        private static string m_ConsumerKeySecret;
+        public static string ConsumerKeySecret
+        {
+            get
+            {
+                return m_ConsumerKeySecret;
+            }
+            private set
+            {
+                if (m_ConsumerKeySecret == value)
+                {
+                    return;
+                }
+                m_ConsumerKeySecret = value;
+            }
+        }
+
+        #endregion
 
 
         public class StoredCredentials
@@ -118,6 +189,7 @@ namespace Twitter
 
         private Account()
         {
+            // Load stored twitter credentials if we have them
             if (IsolatedStorageSettings.ApplicationSettings.Contains(kTwitterCredential))
             {
                 Stored = (StoredCredentials)IsolatedStorageSettings.ApplicationSettings[kTwitterCredential];
@@ -126,6 +198,37 @@ namespace Twitter
             if (Stored == null)
             {
                 Stored = new StoredCredentials();
+            }
+
+            // Load configuration information
+
+            try
+            {
+                if (ApiKey == null)
+                {
+                    ApiKey = SecretKeys.Api;
+                }
+
+                if (ConsumerKey == null)
+                {
+                    ConsumerKey = SecretKeys.Consumer;
+                }
+
+                if (ConsumerKeySecret == null)
+                {
+                    ConsumerKeySecret = SecretKeys.ConsumerSecret;
+                }
+
+                if (CallbackUrl == null)
+                {
+                    CallbackUrl = SecretKeys.CallbackUrl;
+                }
+            }
+            catch (Exception) { }
+
+            if ((ApiKey == null) || (ConsumerKey == null) || (ConsumerKeySecret == null) || (CallbackUrl == null))
+            {
+                throw new Exception("Twitter: Invalid configuration file");
             }
         }
 
@@ -139,6 +242,22 @@ namespace Twitter
                 }
                 return instance;
             }
+        }
+
+        public void Reset(Action<bool> done)
+        {
+            Logout(delegate(bool didLogOut)
+            {
+                if (IsolatedStorageSettings.ApplicationSettings.Contains(kTwitterCredential))
+                {
+                    IsolatedStorageSettings.ApplicationSettings.Remove(kTwitterCredential);
+                    IsolatedStorageSettings.ApplicationSettings.Save();
+                }
+
+                instance = new Account();
+
+                done(didLogOut);
+            });
         }
 
         internal class RequestContainer
@@ -160,7 +279,7 @@ namespace Twitter
 
                 // Acquire a request token
                 Dictionary<string, string> oAuthParams = new Dictionary<string, string>() { 
-                                                                   {RequestKeys.kOAuthConsumerKey, SecretKeys.Consumer},
+                                                                   {RequestKeys.kOAuthConsumerKey, Account.ConsumerKey},
                                                                    {RequestKeys.kOAuthNonce, Helpers.GenerateNonce()},
                                                                    {RequestKeys.kOAuthSignatureMethod, ApiUrl.OAuthSignatureMethod},
                                                                    {RequestKeys.kOAuthToken, OAuthAccessToken},
@@ -174,7 +293,7 @@ namespace Twitter
                 //Build the signature base string
                 string signatureBase = Helpers.GetSignatureBase(Helpers.HttpMethod.Get, ApiUrl.VerifyCredentialsUrl, normalizedParams);
 
-                string signature = Helpers.GetSignature(signatureBase, SecretKeys.ConsumerSecret, OAuthAccessTokenSecret);
+                string signature = Helpers.GetSignature(signatureBase, Account.ConsumerKeySecret, OAuthAccessTokenSecret);
 
                 oAuthParams.Add(RequestKeys.kOAuthSignature, signature);
 
@@ -224,6 +343,80 @@ namespace Twitter
             }
         }
 
+        public void Logout(Action<bool> cb)
+        {
+            if ((OAuthAccessToken != null) && (OAuthAccessTokenSecret != null))
+            {
+                string baseUrl = ApiUrl.EndSessionUrl;
+                Dictionary<string, string> queryParams = new Dictionary<string, string>() {
+                                                        {RequestKeys.kOAuthCallback, Account.CallbackUrl}
+                };
+
+                // Acquire a request token
+                Dictionary<string, string> oAuthParams = new Dictionary<string, string>() { 
+                                                                   {RequestKeys.kOAuthConsumerKey, Account.ConsumerKey},
+                                                                   {RequestKeys.kOAuthNonce, Helpers.GenerateNonce()},
+                                                                   {RequestKeys.kOAuthSignatureMethod, ApiUrl.OAuthSignatureMethod},
+                                                                   {RequestKeys.kOAuthToken, OAuthAccessToken},
+                                                                   {RequestKeys.kOAuthTimeStamp, Helpers.TimeStamp()},
+                                                                   {RequestKeys.kOAuthVersion, RequestKeys.kOAuthVersionValue}
+                };
+
+                // Create a string of normalized paramaters
+                string normalizedParams = Helpers.NormalizeAllParams(oAuthParams, queryParams);
+
+                //Build the signature base string
+                string signatureBase = Helpers.GetSignatureBase(Helpers.HttpMethod.Post, baseUrl, normalizedParams);
+
+                string signature = Helpers.GetSignature(signatureBase, Account.ConsumerKeySecret, OAuthAccessTokenSecret);
+
+                oAuthParams.Add(RequestKeys.kOAuthSignature, signature);
+
+                StringBuilder authorizeHeader = AuthorizeHeaderFromKeyValues(oAuthParams);
+
+                StringBuilder postBody = PostDataFromKeyValues(queryParams);
+
+                string url = CreateFullUrl(baseUrl, null);
+
+                HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url);
+                byte[] postBytes = Encoding.UTF8.GetBytes(postBody.ToString());
+
+                request.Headers["Authorization"] = authorizeHeader.ToString() + "\n";
+                request.ContentType = "application/x-www-form-urlencoded";
+                request.Method = "POST";
+                request.AllowReadStreamBuffering = true;
+
+                RequestContainer requestContainer = new RequestContainer();
+
+                requestContainer.Request = request;
+                requestContainer.RequestData = postBytes;
+
+                SendRequest(requestContainer, delegate(RequestContainer req)
+                {
+                    if (req.ErrorMessage != null)
+                    {
+                        cb(false);
+                    }
+                    else
+                    {
+                        // TODO: At some point we may want to parse the XML response here
+                        string s = Encoding.UTF8.GetString(req.ResponseData, 0, req.ResponseData.Length);
+
+                        cb(true);
+                    }
+                });
+            }
+            else
+            {
+                if (System.Diagnostics.Debugger.IsAttached)
+                {
+                    System.Diagnostics.Debug.WriteLine("No Stored Twitter credentials found");
+                }
+
+                cb(false);
+            }
+        }
+
         public void VerifyCredentials(Action<string, string> needsUserAuthorization)
         {
             CheckCredentials(delegate(bool credentialsOk)
@@ -242,12 +435,12 @@ namespace Twitter
 
                     string baseUrl = ApiUrl.RequestTokenUrl;
                     Dictionary<string, string> queryParams = new Dictionary<string, string>() {
-                                                        {RequestKeys.kOAuthCallback, ApiUrl.CallbackUrl}
+                                                        {RequestKeys.kOAuthCallback, Account.CallbackUrl}
                     };
 
                     // Acquire a request token
                     Dictionary<string, string> oAuthParams = new Dictionary<string, string>() { 
-                                                                {RequestKeys.kOAuthConsumerKey, SecretKeys.Consumer},
+                                                                {RequestKeys.kOAuthConsumerKey, Account.ConsumerKey},
                                                                 {RequestKeys.kOAuthNonce, Helpers.GenerateNonce()},
                                                                 {RequestKeys.kOAuthSignatureMethod, ApiUrl.OAuthSignatureMethod},
                                                                 {RequestKeys.kOAuthTimeStamp, Helpers.TimeStamp()},
@@ -260,7 +453,7 @@ namespace Twitter
                     //Build the signature base string
                     string signatureBase = Helpers.GetSignatureBase(Helpers.HttpMethod.Get, baseUrl, normalizedParams);
 
-                    string signature = Helpers.GetSignature(signatureBase, SecretKeys.ConsumerSecret, null);
+                    string signature = Helpers.GetSignature(signatureBase, Account.ConsumerKeySecret, null);
 
                     oAuthParams.Add(RequestKeys.kOAuthSignature, signature);
 
@@ -322,7 +515,7 @@ namespace Twitter
 
                 // Acquire a request token
                 Dictionary<string, string> oAuthParams = new Dictionary<string, string>() { 
-                                                                   {RequestKeys.kOAuthConsumerKey, SecretKeys.Consumer},
+                                                                   {RequestKeys.kOAuthConsumerKey, Account.ConsumerKey},
                                                                    {RequestKeys.kOAuthNonce, Helpers.GenerateNonce()},
                                                                    {RequestKeys.kOAuthSignatureMethod, ApiUrl.OAuthSignatureMethod},
                                                                    {RequestKeys.kOAuthToken, OAuthAccessToken},
@@ -336,7 +529,7 @@ namespace Twitter
                 //Build the signature base string
                 string signatureBase = Helpers.GetSignatureBase(Helpers.HttpMethod.Post, baseUrl, normalizedParams);
 
-                string signature = Helpers.GetSignature(signatureBase, SecretKeys.ConsumerSecret, OAuthAccessTokenSecret);
+                string signature = Helpers.GetSignature(signatureBase, Account.ConsumerKeySecret, OAuthAccessTokenSecret);
 
                 oAuthParams.Add(RequestKeys.kOAuthSignature, signature);
 
@@ -517,13 +710,17 @@ namespace Twitter
                 try
                 {
                     HttpWebRequest request = requestCBContainer.Request;
+
+                    if (requestCBContainer != null)
+                    {
+
                     byte[] postBytes = requestCBContainer.RequestData;
 
                     Stream s = request.EndGetRequestStream(ar);
 
                     s.Write(postBytes, 0, postBytes.Length);
                     s.Close();
-
+                    }
                     // Start the asynchronous operation to get the response
 
                     request.BeginGetResponse(getAndRead,
@@ -595,7 +792,7 @@ namespace Twitter
 
             // Acquire an access token
             Dictionary<string, string> oAuthParams = new Dictionary<string, string>() { 
-                                                                {RequestKeys.kOAuthConsumerKey, SecretKeys.Consumer},
+                                                                {RequestKeys.kOAuthConsumerKey, Account.ConsumerKey},
                                                                 {RequestKeys.kOAuthNonce, Helpers.GenerateNonce()},
                                                                 {RequestKeys.kOAuthSignatureMethod, ApiUrl.OAuthSignatureMethod},
                                                                 {RequestKeys.kOAuthTimeStamp, Helpers.TimeStamp()},
@@ -609,7 +806,7 @@ namespace Twitter
             //Build the signature base string
             string signatureBase = Helpers.GetSignatureBase(Helpers.HttpMethod.Get, baseUrl, normalizedParams);
 
-            string signature = Helpers.GetSignature(signatureBase, SecretKeys.ConsumerSecret, OAuthRequestTokenSecret);
+            string signature = Helpers.GetSignature(signatureBase, Account.ConsumerKeySecret, OAuthRequestTokenSecret);
 
             oAuthParams.Add(RequestKeys.kOAuthSignature, signature);
 

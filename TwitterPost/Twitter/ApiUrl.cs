@@ -56,19 +56,7 @@ namespace Twitter
         /// <returns></returns>
         public static string AuthenticationUrl(string token)
         { 
-            return string.Format("http://api.twitter.com/oauth/authorize?oauth_token={0}", token); 
-        }
-
-        /// <summary>
-        /// Callback Url.
-        /// </summary>
-        public static string CallbackUrl 
-        { 
-            get 
-            {
-                return "http://ap.org/apwp7";
-                //return "sampleString/samples";
-            } 
+            return string.Format("http://api.twitter.com/oauth/authenticate?oauth_token={0}&force_login=true", token); 
         }
 
         /// <summary>
@@ -91,6 +79,14 @@ namespace Twitter
             { 
                 return "http://api.twitter.com/1/account/verify_credentials.xml"; 
             } 
+        }
+
+        public static string EndSessionUrl
+        { 
+            get
+            {
+                return "http://api.twitter.com/1/account/end_session.json";
+            }
         }
     }
 }

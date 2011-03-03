@@ -35,6 +35,24 @@ namespace TwitterPost.ViewModels
         }
 
 
+        private ICommand m_ClickLogout;
+        public ICommand ClickLogout
+        {
+            get
+            {
+                return m_ClickLogout;
+            }
+            set
+            {
+                if (m_ClickLogout == value)
+                {
+                    return;
+                }
+                m_ClickLogout = value;
+                NotifyPropertyChanged("ClickLogout");
+            }
+        }
+
 
         private TwitterPostViewModel m_TwitterPostViewModel;
         public TwitterPostViewModel TwitterPostViewModel
@@ -98,6 +116,27 @@ namespace TwitterPost.ViewModels
                                 MainPageViewModel.PostTestTweet(status);
                             }
                         }
+                    });
+                }
+            };
+
+            ClickLogout = new DelegateCommand
+            {
+                ExecuteCommand = delegate()
+                {
+                    Account.Instance.Reset(delegate(bool success)
+                    {
+                        Deployment.Current.Dispatcher.BeginInvoke(delegate()
+                        {
+                            if (success)
+                            {
+                                MessageBox.Show("Logged out succesfully");
+                            }
+                            else
+                            {
+                                MessageBox.Show("FAILED to log out succesfully");
+                            }
+                        });                     
                     });
                 }
             };

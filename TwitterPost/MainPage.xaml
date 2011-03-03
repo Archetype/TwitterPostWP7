@@ -32,7 +32,10 @@
 
         <!--ContentPanel - place additional content here-->
         <Grid x:Name="ContentPanel" Grid.Row="1" Margin="12,0,12,0">
-        	<Archetype_Controls:CommandButton Content="Post to Twitter" Margin="0,0,214,0" VerticalAlignment="Top" d:LayoutOverrides="Width" ClickCommand="{Binding ClickPostTweet}"/>
+        	<StackPanel Margin="0,0,214,0" Orientation="Vertical" VerticalAlignment="Top">
+        		<Archetype_Controls:CommandButton x:Name="LogOut" Content="Post to Twitter" d:LayoutOverrides="Width" ClickCommand="{Binding ClickPostTweet}"/>
+        		<Archetype_Controls:CommandButton x:Name="PostToTwitterButton" Content="Logout of Twitter" d:LayoutOverrides="Width" ClickCommand="{Binding ClickLogout}"/>
+        	</StackPanel>
         </Grid>
     </Grid>
  

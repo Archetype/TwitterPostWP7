@@ -58,9 +58,6 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="..\..\apWP7\trunk\source\AP.WP7\AP.WP7\Twitter\SecretKeys.cs">
-      <Link>Twitter\SecretKeys.cs</Link>
-    </Compile>
     <Compile Include="App.xaml.cs">
       <DependentUpon>App.xaml</DependentUpon>
     </Compile>
@@ -78,6 +75,7 @@
     <Compile Include="Twitter\Helpers.cs" />
     <Compile Include="Twitter\RequestKeys.cs" />
     <Compile Include="Twitter\ApiUrl.cs" />
+    <Compile Include="Twitter\SecretKeys.cs" />
     <Compile Include="ViewModels\MainPageViewModel.cs" />
     <Compile Include="ViewModels\TwitterPostViewModel.cs" />
   </ItemGroup>
